@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pigeon Game</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="game-container">
+    <header>
+      <h1>Pigeon Game</h1>
+      <p>Welcome to the Loft</p>
+    </header>
+
+    <div id="home-screen" class="section">
+      <div id="energy-container">
+        <p>Energy: <span id="energy-text">100%</span></p>
+        <div id="energy-bar"></div>
+      </div>
+      <div id="coin-container">
+        <p>Coins: <span id="coin-text">0</span></p>
+      </div>
+      <div id="inventory-container">
+        <p>Feathers: <span id="feather-text">0/5</span> <button id="useNestBtn" style="display: none;">Use Nest</button></p>
+      </div>
+      <div class="home-buttons">
+        <button id="loftBtn" class="home-button">To Loft</button>
+        <button id="exploreBtn" class="home-button">Explore</button>
+        <button id="storeBtn" class="home-button">Store</button>
+      </div>
+    </div>
+
+    <div id="loft-screen" class="section">
+      <div id="energy-container">
+        <p>Energy: <span id="energy-text">100%</span></p>
+        <div id="energy-bar"></div>
+      </div>
+      <div id="coin-container">
+        <p>Coins: <span id="coin-text">0</span></p>
+      </div>
+      <div id="inventory-container">
+        <p>Feathers: <span id="feather-text">0/5</span> <button id="useNestBtn" style="display: none;">Use Nest</button></p>
+      </div>
+      <div id="pigeon-grid" class="pigeon-grid"></div>
+      <button id="breedBtnLoft">Breed</button>
+      <button id="toStoreBtn">To Store</button>
+      <button id="toExploreBtn">To Explore</button>
+      <button id="backHomeLoft">Back to Home</button>
+    </div>
+
+    <div id="breeding-screen" class="section">
+      <div id="breeding-container">
+        <div id="male-panel" class="breeding-panel"><h3>Males</h3></div>
+        <div id="female-panel" class="breeding-panel"><h3>Females</h3></div>
+        <div id="selected-pair" class="center-panel">
+          <div id="selected-male"></div>
+          <div id="selected-female"></div>
+          <button id="breedPairBtn" disabled>Breed Pair</button>
+          <button id="useNestBtn" style="display: none;">Use Nest</button>
+        </div>
+      </div>
+      <button id="backHomeBreed">Back to Home</button>
+    </div>
+
+    <div id="explore-screen" class="section">
+      <div id="energy-container">
+        <p>Energy: <span id="energy-text">100%</span></p>
+        <div id="energy-bar"></div>
+      </div>
+      <div id="coin-container">
+        <p>Coins: <span id="coin-text">0</span></p>
+      </div>
+      <div id="explore-result"></div>
+      <button id="exploreBtnInner">Explore Again</button>
+      <button id="toLoftBtnExplore">To Loft</button>
+      <button id="backHomeExplore">Back to Home</button>
+    </div>
+
+    <div id="store-screen" class="section">
+      <div id="energy-container">
+        <p>Energy: <span id="energy-text">100%</span></p>
+        <div id="energy-bar"></div>
+      </div>
+      <div id="coin-container">
+        <p>Coins: <span id="coin-text">0</span></p>
+      </div>
+      <div id="store-items" class="store-grid"></div>
+      <button id="toLoftBtnStore">To Loft</button>
+      <button id="backHomeStore">Back to Home</button>
+    </div>
+
+    <div id="pigeon-detail-screen" class="section">
+      <div id="pigeon-detail-content"></div>
+      <button id="backLoftDetail">Back to Loft</button>
+    </div>
+
+    <div id="admin-panel" class="section">
+      <button id="createPigeonBtn">Create Pigeon</button>
+      <button id="addCoinsBtn">Add Coins</button>
+      <button id="infiniteEnergyBtn">Toggle Infinite Energy</button>
+      <button id="addItemsBtn">Add Items</button>
+      <button id="editPigeonBtn">Edit Pigeon</button>
+      <div id="admin-result"></div>
+      <button id="backHomeAdmin">Back to Home</button>
+    </div>
+
+    <div id="cooldown-select-screen" class="section">
+      <h1>Select Hen to Remove Cooldown</h1>
+      <div id="cooldown-select" class="pigeon-grid"></div>
+      <button id="backHomeCooldown">Back to Store</button>
+    </div>
+
+    <div id="grow-select-screen" class="section">
+      <h1>Select Baby to Grow</h1>
+      <div id="grow-select" class="pigeon-grid"></div>
+      <button id="backHomeGrow">Back to Store</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
