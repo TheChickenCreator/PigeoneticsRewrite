@@ -54,7 +54,7 @@ const SPREAD_COLORS = {
   "Recessive red": "./red_recessive.gif"
 };
 const BABY_IMAGE = "./squab.gif";
-const PLACEHOLDER_IMAGE = "./placeholder.gif";
+const PLACEHOLDER_IMAGE = "./blue_bar.gif";
 
 const BABY_GROW_COOLDOWN = 20 * 60 * 1000;
 const HEN_BREED_COOLDOWN = 45 * 60 * 1000;
@@ -1143,3 +1143,4 @@ setInterval(() => {
 }, 1000);
 
 window.explore = explore;
+
