@@ -33,7 +33,14 @@ let breedingSelection = { male: null, female: null };
 let inventory = JSON.parse(localStorage.getItem("inventory")) || { "Energy Renewal": 0, "Breeding Cooldown": 0, "Baby Auto Grow": 0 };
 let infiniteEnergy = localStorage.getItem("infiniteEnergy") === "true";
 let adminKeySequence = "";
-const GAME_VERSION = 3;
+const GAME_VERSION = 4;
+
+const COLOR_ALLELES = {
+  'B+': "Ash red",
+  'B': "Blue",
+  'b': "Brown"
+};
+const COLOR_DOMINANCE = ['B+', 'B', 'b'];
 
 const BASE_COLORS = {
   "Ash red": "./red_bar.gif",
@@ -58,7 +65,6 @@ const PLACEHOLDER_IMAGE = "./placeholder.gif";
 
 const BABY_GROW_COOLDOWN = 20 * 60 * 1000;
 const HEN_BREED_COOLDOWN = 45 * 60 * 1000;
-const BREED_ENERGY_COST = 5;
 
 function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function clamp01(n) { return Math.max(0, Math.min(100, n)); }
@@ -106,13 +112,22 @@ function initializeGame() {
   if (storedVersion < GAME_VERSION) {
     console.log("Migrating pigeons for game version", GAME_VERSION);
     pigeons.forEach(p => {
-      if (p && !p.isBaby) {
-        applyModifiers(p);
-      }
-      // Ensure recessiveColor exists for older pigeons
-      if (p && !p.recessiveColor) {
-        const availableColors = Object.keys(BASE_COLORS).filter(c => c !== p.primaryColor);
-        p.recessiveColor = Math.random() < 0.5 ? randChoice(availableColors) : "None";
+      if (p) {
+        // Remove deprecated recessiveColor property
+        delete p.recessiveColor;
+        // Ensure genotype.Z aligns with primaryColor
+        if (!p.genotype || !p.genotype.Z) {
+          p.genotype = p.genotype || { autosomal: {} };
+          p.genotype.Z = p.gender === "Male" ? [Object.keys(COLOR_ALLELES).find(k => COLOR_ALLELES[k] === p.primaryColor) || 'B', randChoice(['B+', 'B', 'b'])] : [Object.keys(COLOR_ALLELES).find(k => COLOR_ALLELES[k] === p.primaryColor) || 'B', 'W'];
+          p.genotype.autosomal = p.genotype.autosomal || {};
+          p.genotype.autosomal.recessive_red = p.genotype.autosomal.recessive_red || [randChoice(['R', 'r']), randChoice(['R', 'r'])];
+        }
+        if (p.primaryColor === "Recessive red" && !p.genotype.autosomal.recessive_red.every(a => a === "r")) {
+          p.genotype.autosomal.recessive_red = ["r", "r"];
+        }
+        if (!p.isBaby) {
+          applyModifiers(p);
+        }
       }
     });
     localStorage.setItem("gameVersion", GAME_VERSION);
@@ -180,8 +195,13 @@ function setupEventListeners() {
             <option value="Male">Male</option>
             <option value="Female">Female</option>
           </select>
-          <select id="adminColor1">
-            ${Object.keys(BASE_COLORS).map(c => `<option value="${c}">${c}</option>`).join("")}
+          <select id="adminZ1">
+            <option value="B+">Ash red</option>
+            <option value="B">Blue</option>
+            <option value="b">Brown</option>
+          </select>
+          <select id="adminZ2">
+            <option value="W">W</option>
           </select>
           <select id="adminPattern1">
             ${PATTERN_ORDER.map(p => `<option value="${p}">${PATTERN_NAMES[p]}</option>`).join("")}
@@ -191,13 +211,25 @@ function setupEventListeners() {
           </select>
           <select id="adminSpread"><option value="S">S</option><option value="s">s</option></select>
           <select id="adminDilute"><option value="D">D</option><option value="d">d</option></select>
-          <select id="adminRecessive"><option value="R">R</option><option value="r">r</option></select>
-          <select id="adminRecessiveColor">
-            <option value="None">None</option>
-            ${Object.keys(BASE_COLORS).map(c => `<option value="${c}">${c}</option>`).join("")}
-          </select>
+          <select id="adminRecessiveRed1"><option value="R">R</option><option value="r">r</option></select>
+          <select id="adminRecessiveRed2"><option value="R">R</option><option value="r">r</option></select>
           <button id="adminCreateBtn">Create</button>
         `;
+        const genderSelect = document.getElementById("adminGender");
+        const z2Select = document.getElementById("adminZ2");
+        genderSelect.addEventListener("change", () => {
+          if (genderSelect.value === "Female") {
+            z2Select.disabled = true;
+            z2Select.innerHTML = `<option value="W">W</option>`;
+          } else {
+            z2Select.disabled = false;
+            z2Select.innerHTML = `
+              <option value="B+">Ash red</option>
+              <option value="B">Blue</option>
+              <option value="b">Brown</option>
+            `;
+          }
+        });
         document.getElementById("adminCreateBtn").addEventListener("click", createCustomPigeon);
       }
     },
@@ -371,20 +403,22 @@ function getRandomName() { return randChoice(pigeonNames); }
 function generatePigeon(id, gender = null, isBaby = false, parents = null) {
   gender = gender || (Math.random() < 0.5 ? "Male" : "Female");
   const patternAlleles = [randChoice(PATTERN_ORDER), randChoice(PATTERN_ORDER)];
-  const primaryColor = randChoice(Object.keys(BASE_COLORS));
-  const availableColors = Object.keys(BASE_COLORS).filter(c => c !== primaryColor);
-  const recessiveColor = Math.random() < 0.5 ? randChoice(availableColors) : "None";
+  const z1 = randChoice(['B+', 'B', 'b']);
+  const z2 = gender === "Male" ? randChoice(['B+', 'B', 'b']) : 'W';
+  const recessiveRed1 = Math.random() < 0.5 ? "R" : "r";
+  const recessiveRed2 = Math.random() < 0.5 ? "R" : "r";
   const genotype = {
     sex: gender,
-    Z: (gender === "Male") ? [primaryColor, randChoice(Object.keys(BASE_COLORS))] : [primaryColor, "W"],
+    Z: [z1, z2],
     autosomal: {
       pattern: patternAlleles,
       spread: [Math.random() < 0.5 ? "S" : "s", Math.random() < 0.5 ? "S" : "s"],
       dilute: [Math.random() < 0.5 ? "D" : "d", Math.random() < 0.5 ? "D" : "d"],
-      recessive_red: [Math.random() < 0.5 ? "R" : "r", Math.random() < 0.5 ? "R" : "r"]
+      recessive_red: [recessiveRed1, recessiveRed2]
     }
   };
 
+  const primaryColor = resolveBaseColor(genotype);
   let sprite = isBaby ? "./squab.gif" : BASE_COLORS[primaryColor] || PLACEHOLDER_IMAGE;
 
   const pigeon = {
@@ -394,7 +428,6 @@ function generatePigeon(id, gender = null, isBaby = false, parents = null) {
     genotype,
     primaryColor,
     displayedColor: primaryColor,
-    recessiveColor,
     sprite,
     isBaby: !!isBaby,
     breedCooldown: 0,
@@ -413,11 +446,12 @@ function generatePigeon(id, gender = null, isBaby = false, parents = null) {
 function resolveBaseColor(genotype) {
   if (!genotype || !genotype.Z) {
     console.warn("Invalid genotype for color resolution");
-    return Object.keys(BASE_COLORS)[0];
+    return "Blue";
   }
   if (genotype.autosomal.recessive_red.every(a => a === "r")) return "Recessive red";
-  const z = genotype.Z[0];
-  return z in BASE_COLORS ? z : Object.keys(BASE_COLORS)[0];
+  const zAlleles = genotype.Z.filter(a => a !== "W");
+  const sorted = zAlleles.sort((a, b) => COLOR_DOMINANCE.indexOf(a) - COLOR_DOMINANCE.indexOf(b));
+  return COLOR_ALLELES[sorted[0]] || "Blue";
 }
 
 function applyModifiers(p) {
@@ -465,47 +499,20 @@ function findPigeonById(id) {
   return pigeon;
 }
 
-function displayPigeons() {
-  const pigeonGrid = document.getElementById("pigeon-grid");
-  if (!pigeonGrid) {
-    console.warn("Pigeon grid not found");
-    return;
-  }
-  const currentState = pigeons.map(p => p ? `${p.id}:${p.name}:${p.sprite}:${p.displayedColor}:${p.breedCooldown}:${p.matureTime}` : "null").join("|");
-  if (pigeonGrid.dataset.lastState === currentState) {
-    console.log("No change in pigeon data, skipping DOM update");
-    return;
-  }
-  pigeonGrid.dataset.lastState = currentState;
-  pigeonGrid.innerHTML = "";
-  pigeons.forEach((p, idx) => {
-    if (p) {
-      if (!p.name || !p.sprite || !p.gender || !p.displayedColor) {
-        console.warn(`Invalid pigeon data at index ${idx}:`, p);
-        return;
-      }
-      const div = document.createElement("div");
-      div.className = "pigeon";
-      div.dataset.pigeonId = p.id;
-      const cooldown = p.isBaby 
-        ? (p.matureTime ? formatTime(Math.max(0, p.matureTime - Date.now())) : "Ready")
-        : (p.breedCooldown ? formatTime(Math.max(0, p.breedCooldown)) : "Ready");
-      const displayColor = p.isBaby ? "Baby" : (p.displayedColor || "Unknown Color");
-      const displayName = p.name || "Unnamed";
-      div.innerHTML = `
-        <img src="${p.sprite || PLACEHOLDER_IMAGE}" alt="${displayName}" data-last-src="${p.sprite || PLACEHOLDER_IMAGE}" onerror="if (this.src !== '${PLACEHOLDER_IMAGE}') { this.src = '${PLACEHOLDER_IMAGE}'; console.warn('Failed to load image: ${p.sprite}'); }">
-        <p>Name: ${displayName}</p>
-        <p>Color: ${displayColor}</p>
-        <p>Gender: ${p.gender}</p>
-        <p>Cooldown: ${cooldown}</p>
-      `;
-      div.addEventListener("click", () => showPigeonDetail(p.id));
-      pigeonGrid.appendChild(div);
+function getCarriedRecessives(pigeon) {
+  const carried = [];
+  if (pigeon.gender === "Male") {
+    const z1 = pigeon.genotype.Z[0];
+    const z2 = pigeon.genotype.Z[1];
+    if (z1 !== z2) {
+      const recessiveAllele = COLOR_DOMINANCE.indexOf(z1) < COLOR_DOMINANCE.indexOf(z2) ? z2 : z1;
+      carried.push(COLOR_ALLELES[recessiveAllele]);
     }
-  });
-  if (pigeonGrid.innerHTML === "") {
-    pigeonGrid.innerHTML = "<p>No pigeons in the loft.</p>";
   }
+  if (pigeon.genotype.autosomal.recessive_red.includes("r") && !pigeon.genotype.autosomal.recessive_red.every(a => a === "r")) {
+    carried.push("Recessive red");
+  }
+  return carried.length > 0 ? carried.join(", ") : "None";
 }
 
 function showPigeonDetail(id) {
@@ -538,15 +545,14 @@ function showPigeonDetail(id) {
       <p>Granddam: Unknown</p>
     `;
   }
-  const displayColor = pigeon.isBaby ? "Baby" : (pigeon.displayedColor || "Unknown Color");
   content.innerHTML = `
     <img src="${pigeon.sprite || PLACEHOLDER_IMAGE}" alt="${pigeon.name || 'Unnamed'}" data-last-src="${pigeon.sprite || PLACEHOLDER_IMAGE}" onerror="if (this.src !== '${PLACEHOLDER_IMAGE}') { this.src = '${PLACEHOLDER_IMAGE}'; }">
     <h4>${pigeon.name || "Unnamed"}</h4>
     <p>Gender: ${pigeon.gender || "Unknown"}</p>
-    <p>Color: ${displayColor}</p>
+    <p>Color: ${pigeon.isBaby ? "Baby" : (pigeon.displayedColor || "Unknown Color")}</p>
     <p>Pattern: ${formatPatternDisplay(pigeon.traits.pattern) || "Unknown"} (${pigeon.traits.pattern.join(", ") || "None"})</p>
     <p>Headcrest: ${pigeon.traits.headcrest || "None"}</p>
-    <p>Recessives: ${pigeon.recessiveColor || "None"}</p>
+    <p>Recessives: ${getCarriedRecessives(pigeon)}</p>
     <p>Cooldown: ${cooldown}</p>
     ${lineage}
   `;
@@ -693,7 +699,7 @@ function explore() {
   const message = randChoice(exploreInteractions);
   resultEl.innerHTML = `<p>${message}</p>`;
   const outcome = Math.random();
-  if (outcome < 0.20) { // 20% chance to find a pigeon
+  if (outcome < 0.20) {
     resultEl.innerHTML += `<p>A pigeon bursts from the brush...</p>
       <button id="catchYes">Catch it? Yes</button> <button id="catchNo">No</button>`;
     const yes = document.getElementById("catchYes");
@@ -729,13 +735,13 @@ function explore() {
       yes.remove();
       no.remove();
     });
-  } else if (outcome < 0.40) { // 20% chance to find coins
+  } else if (outcome < 0.40) {
     const coinGain = Math.floor(Math.random() * 5) + 1;
     coins += coinGain;
     updateCoins();
     resultEl.innerHTML += `<p>You found ${coinGain} coins!</p>`;
     saveGameState();
-  } else { // 60% chance for no reward
+  } else {
     resultEl.innerHTML += `<p>Nothing else of interest here.</p>`;
   }
 }
@@ -876,32 +882,34 @@ window.useItem = function(name) {
 function createCustomPigeon() {
   const name = document.getElementById("adminName").value || getRandomName();
   const gender = document.getElementById("adminGender").value;
-  const color1 = document.getElementById("adminColor1").value;
+  const z1 = document.getElementById("adminZ1").value;
+  const z2 = document.getElementById("adminZ2").value;
   const pattern1 = document.getElementById("adminPattern1").value;
   const pattern2 = document.getElementById("adminPattern2").value;
   const spread = document.getElementById("adminSpread").value;
   const dilute = document.getElementById("adminDilute").value;
-  const recessive = document.getElementById("adminRecessive").value;
-  const recessiveColor = document.getElementById("adminRecessiveColor").value;
+  const recessiveRed1 = document.getElementById("adminRecessiveRed1").value;
+  const recessiveRed2 = document.getElementById("adminRecessiveRed2").value;
 
+  const genotype = {
+    sex: gender,
+    Z: [z1, z2],
+    autosomal: {
+      pattern: [pattern1, pattern2],
+      spread: [spread, spread],
+      dilute: [dilute, dilute],
+      recessive_red: [recessiveRed1, recessiveRed2]
+    }
+  };
+  const primaryColor = resolveBaseColor(genotype);
   const newPigeon = {
     id: Date.now(),
     name,
     gender,
-    genotype: {
-      sex: gender,
-      Z: [color1, gender === "Male" ? color1 : "W"],
-      autosomal: {
-        pattern: [pattern1, pattern2],
-        spread: [spread, spread],
-        dilute: [dilute, dilute],
-        recessive_red: [recessive, recessive]
-      }
-    },
-    primaryColor: color1,
-    displayedColor: color1,
-    recessiveColor,
-    sprite: BASE_COLORS[color1],
+    genotype,
+    primaryColor,
+    displayedColor: primaryColor,
+    sprite: BASE_COLORS[primaryColor],
     isBaby: false,
     breedCooldown: 0,
     matureTime: null,
@@ -940,34 +948,71 @@ function showEditForm() {
   result.innerHTML = `
     <input type="text" id="editName" value="${pigeon.name || 'Unnamed'}" placeholder="Name">
     <select id="editGender"><option value="Male"${pigeon.gender==="Male"?" selected":""}>Male</option><option value="Female"${pigeon.gender==="Female"?" selected":""}>Female</option></select>
-    <select id="editColor1">${Object.keys(BASE_COLORS).map(c=>`<option value="${c}" ${c===pigeon.primaryColor?"selected":""}>${c}</option>`).join("")}</select>
+    <select id="editZ1">
+      <option value="B+" ${pigeon.genotype.Z[0] === 'B+' ? "selected" : ""}>Ash red</option>
+      <option value="B" ${pigeon.genotype.Z[0] === 'B' ? "selected" : ""}>Blue</option>
+      <option value="b" ${pigeon.genotype.Z[0] === 'b' ? "selected" : ""}>Brown</option>
+    </select>
+    <select id="editZ2" ${pigeon.gender === "Female" ? "disabled" : ""}>
+      ${pigeon.gender === "Female" ? `<option value="W" selected>W</option>` : `
+        <option value="B+" ${pigeon.genotype.Z[1] === 'B+' ? "selected" : ""}>Ash red</option>
+        <option value="B" ${pigeon.genotype.Z[1] === 'B' ? "selected" : ""}>Blue</option>
+        <option value="b" ${pigeon.genotype.Z[1] === 'b' ? "selected" : ""}>Brown</option>
+      `}
+    </select>
     <select id="editPattern1">${PATTERN_ORDER.map(p=>`<option value="${p}" ${p===pigeon.traits.pattern[0]?"selected":""}>${PATTERN_NAMES[p]}</option>`).join("")}</select>
     <select id="editPattern2">${PATTERN_ORDER.map(p=>`<option value="${p}" ${p===pigeon.traits.pattern[1]?"selected":""}>${PATTERN_NAMES[p]}</option>`).join("")}</select>
     <select id="editSpread"><option value="S"${pigeon.genotype.autosomal.spread[0]==="S"?" selected":""}>S</option><option value="s"${pigeon.genotype.autosomal.spread[0]==="s"?" selected":""}>s</option></select>
     <select id="editDilute"><option value="D"${pigeon.genotype.autosomal.dilute[0]==="D"?" selected":""}>D</option><option value="d"${pigeon.genotype.autosomal.dilute[0]==="d"?" selected":""}>d</option></select>
-    <select id="editRecessive"><option value="R"${pigeon.genotype.autosomal.recessive_red[0]==="R"?" selected":""}>R</option><option value="r"${pigeon.genotype.autosomal.recessive_red[0]==="r"?" selected":""}>r</option></select>
-    <select id="editRecessiveColor">
-      <option value="None"${pigeon.recessiveColor==="None"?" selected":""}>None</option>
-      ${Object.keys(BASE_COLORS).map(c=>`<option value="${c}" ${c===pigeon.recessiveColor?"selected":""}>${c}</option>`).join("")}
-    </select>
+    <select id="editRecessiveRed1"><option value="R"${pigeon.genotype.autosomal.recessive_red[0]==="R"?" selected":""}>R</option><option value="r"${pigeon.genotype.autosomal.recessive_red[0]==="r"?" selected":""}>r</option></select>
+    <select id="editRecessiveRed2"><option value="R"${pigeon.genotype.autosomal.recessive_red[1]==="R"?" selected":""}>R</option><option value="r"${pigeon.genotype.autosomal.recessive_red[1]==="r"?" selected":""}>r</option></select>
     <button id="saveEditBtn">Save</button>
   `;
+  const genderSelect = document.getElementById("editGender");
+  const z2Select = document.getElementById("editZ2");
+  genderSelect.addEventListener("change", () => {
+    if (genderSelect.value === "Female") {
+      z2Select.disabled = true;
+      z2Select.innerHTML = `<option value="W">W</option>`;
+    } else {
+      z2Select.disabled = false;
+      z2Select.innerHTML = `
+        <option value="B+">Ash red</option>
+        <option value="B">Blue</option>
+        <option value="b">Brown</option>
+      `;
+    }
+  });
   document.getElementById("saveEditBtn").addEventListener("click", () => saveEdit(pigeon.id));
 }
 
 function saveEdit(id) {
   const pigeon = findPigeonById(id);
   if (!pigeon) return;
-  pigeon.name = document.getElementById("editName").value || pigeon.name;
-  pigeon.gender = document.getElementById("editGender").value;
-  const color = document.getElementById("editColor1").value;
-  pigeon.genotype.Z = [color, pigeon.gender === "Male" ? color : "W"];
-  pigeon.genotype.autosomal.pattern = [document.getElementById("editPattern1").value, document.getElementById("editPattern2").value];
-  pigeon.genotype.autosomal.spread = [document.getElementById("editSpread").value, document.getElementById("editSpread").value];
-  pigeon.genotype.autosomal.dilute = [document.getElementById("editDilute").value, document.getElementById("editDilute").value];
-  pigeon.genotype.autosomal.recessive_red = [document.getElementById("editRecessive").value, document.getElementById("editRecessive").value];
+  const name = document.getElementById("editName").value || pigeon.name;
+  const gender = document.getElementById("editGender").value;
+  const z1 = document.getElementById("editZ1").value;
+  const z2 = document.getElementById("editZ2").value;
+  const pattern1 = document.getElementById("editPattern1").value;
+  const pattern2 = document.getElementById("editPattern2").value;
+  const spread = document.getElementById("editSpread").value;
+  const dilute = document.getElementById("editDilute").value;
+  const recessiveRed1 = document.getElementById("editRecessiveRed1").value;
+  const recessiveRed2 = document.getElementById("editRecessiveRed2").value;
+
+  pigeon.name = name;
+  pigeon.gender = gender;
+  pigeon.genotype = {
+    sex: gender,
+    Z: [z1, z2],
+    autosomal: {
+      pattern: [pattern1, pattern2],
+      spread: [spread, spread],
+      dilute: [dilute, dilute],
+      recessive_red: [recessiveRed1, recessiveRed2]
+    }
+  };
   pigeon.primaryColor = resolveBaseColor(pigeon.genotype);
-  pigeon.recessiveColor = document.getElementById("editRecessiveColor").value;
   applyModifiers(pigeon);
   displayPigeons();
   saveGameState();
@@ -1032,18 +1077,50 @@ function inheritAllele(a1, a2) { return Math.random() < 0.5 ? a1 : a2; }
 function generateOffspring(male, female) {
   const id = Date.now();
   const gender = Math.random() < 0.5 ? "Male" : "Female";
+  
+  // Determine Z alleles
+  let zAlleles;
+  const maleCarried = getCarriedRecessives(male).split(", ").filter(c => c !== "Recessive red" && c !== "None");
+  const femalePrimaryAllele = female.genotype.Z[0];
+  if (maleCarried.length > 0 && maleCarried.includes(COLOR_ALLELES[femalePrimaryAllele])) {
+    // Male carries the female's primary color as recessive
+    const maleAlleles = male.genotype.Z;
+    const recessiveAllele = maleAlleles.find(a => COLOR_ALLELES[a] === COLOR_ALLELES[femalePrimaryAllele]);
+    const primaryAllele = maleAlleles.find(a => a !== recessiveAllele);
+    zAlleles = gender === "Male" ? 
+      [Math.random() < 0.5 ? primaryAllele : recessiveAllele, inheritAllele(male.genotype.Z[0], male.genotype.Z[1])] :
+      [Math.random() < 0.5 ? primaryAllele : recessiveAllele, "W"];
+  } else {
+    zAlleles = gender === "Male" ? 
+      [inheritAllele(male.genotype.Z[0], male.genotype.Z[1]), inheritAllele(male.genotype.Z[0], male.genotype.Z[1])] :
+      [inheritAllele(male.genotype.Z[0], male.genotype.Z[1]), "W"];
+  }
+
+  // Determine recessive_red alleles
+  let recessiveRedAlleles = [
+    inheritAllele(male.genotype.autosomal.recessive_red[0], male.genotype.autosomal.recessive_red[1]),
+    inheritAllele(female.genotype.autosomal.recessive_red[0], female.genotype.autosomal.recessive_red[1])
+  ];
+  
+  // If one parent is Recessive red, ensure 50% chance of Recessive red offspring
+  if (male.genotype.autosomal.recessive_red.every(a => a === "r") || female.genotype.autosomal.recessive_red.every(a => a === "r")) {
+    const recessiveParent = male.genotype.autosomal.recessive_red.every(a => a === "r") ? male : female;
+    const otherParent = recessiveParent === male ? female : male;
+    recessiveRedAlleles = [ "r", inheritAllele(otherParent.genotype.autosomal.recessive_red[0], otherParent.genotype.autosomal.recessive_red[1]) ];
+  }
+
   const genotype = {
-    Z: [inheritAllele(male.genotype.Z[0], female.genotype.Z[0]), gender === "Male" ? inheritAllele(male.genotype.Z[1] || male.genotype.Z[0], female.genotype.Z[1] || female.genotype.Z[0]) : "W"],
+    sex: gender,
+    Z: zAlleles,
     autosomal: {
       pattern: [inheritAllele(male.genotype.autosomal.pattern[0], male.genotype.autosomal.pattern[1]), inheritAllele(female.genotype.autosomal.pattern[0], female.genotype.autosomal.pattern[1])],
       spread: [inheritAllele(male.genotype.autosomal.spread[0], male.genotype.autosomal.spread[1]), inheritAllele(female.genotype.autosomal.spread[0], female.genotype.autosomal.spread[1])],
       dilute: [inheritAllele(male.genotype.autosomal.dilute[0], male.genotype.autosomal.dilute[1]), inheritAllele(female.genotype.autosomal.dilute[0], female.genotype.autosomal.dilute[1])],
-      recessive_red: [inheritAllele(male.genotype.autosomal.recessive_red[0], male.genotype.autosomal.recessive_red[1]), inheritAllele(female.genotype.autosomal.recessive_red[0], female.genotype.autosomal.recessive_red[1])]
+      recessive_red: recessiveRedAlleles
     }
   };
+  
   const primaryColor = resolveBaseColor(genotype);
-  const recessiveColorOptions = [male.recessiveColor, female.recessiveColor].filter(c => c !== "None" && c !== primaryColor);
-  const recessiveColor = recessiveColorOptions.length > 0 && Math.random() < 0.5 ? randChoice(recessiveColorOptions) : "None";
   const child = {
     id,
     name: getRandomName(),
@@ -1051,7 +1128,6 @@ function generateOffspring(male, female) {
     genotype,
     primaryColor,
     displayedColor: primaryColor,
-    recessiveColor,
     sprite: "./squab.gif",
     isBaby: true,
     breedCooldown: 0,
