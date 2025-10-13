@@ -58,17 +58,10 @@ const PLACEHOLDER_IMAGE = "./placeholder.gif";
 
 const BABY_GROW_COOLDOWN = 20 * 60 * 1000;
 const HEN_BREED_COOLDOWN = 45 * 60 * 1000;
+const BREED_ENERGY_COST = 5;
 
 function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function clamp01(n) { return Math.max(0, Math.min(100, n)); }
-
-// Define valid recessive colors based on primary color
-const VALID_RECESSIVE_COLORS = {
-  "Ash red": ["Blue", "Brown", "Recessive red", "None"],
-  "Blue": ["Brown", "Recessive red", "None"],
-  "Brown": ["Recessive red", "None"],
-  "Recessive red": ["None"]
-};
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM loaded, initializing game...");
@@ -116,10 +109,10 @@ function initializeGame() {
       if (p && !p.isBaby) {
         applyModifiers(p);
       }
-      // Ensure recessiveColor is valid for existing pigeons
-      if (p && (!p.recessiveColor || !VALID_RECESSIVE_COLORS[p.primaryColor].includes(p.recessiveColor))) {
-        const availableColors = VALID_RECESSIVE_COLORS[p.primaryColor];
-        p.recessiveColor = Math.random() < 0.5 ? randChoice(availableColors.filter(c => c !== "None")) : "None";
+      // Ensure recessiveColor exists for older pigeons
+      if (p && !p.recessiveColor) {
+        const availableColors = Object.keys(BASE_COLORS).filter(c => c !== p.primaryColor);
+        p.recessiveColor = Math.random() < 0.5 ? randChoice(availableColors) : "None";
       }
     });
     localStorage.setItem("gameVersion", GAME_VERSION);
@@ -201,17 +194,10 @@ function setupEventListeners() {
           <select id="adminRecessive"><option value="R">R</option><option value="r">r</option></select>
           <select id="adminRecessiveColor">
             <option value="None">None</option>
+            ${Object.keys(BASE_COLORS).map(c => `<option value="${c}">${c}</option>`).join("")}
           </select>
           <button id="adminCreateBtn">Create</button>
         `;
-        const colorSelect = document.getElementById("adminColor1");
-        const recessiveSelect = document.getElementById("adminRecessiveColor");
-        function updateRecessiveOptions() {
-          const primaryColor = colorSelect.value;
-          recessiveSelect.innerHTML = VALID_RECESSIVE_COLORS[primaryColor].map(c => `<option value="${c}">${c}</option>`).join("");
-        }
-        updateRecessiveOptions();
-        colorSelect.addEventListener("change", updateRecessiveOptions);
         document.getElementById("adminCreateBtn").addEventListener("click", createCustomPigeon);
       }
     },
@@ -386,8 +372,8 @@ function generatePigeon(id, gender = null, isBaby = false, parents = null) {
   gender = gender || (Math.random() < 0.5 ? "Male" : "Female");
   const patternAlleles = [randChoice(PATTERN_ORDER), randChoice(PATTERN_ORDER)];
   const primaryColor = randChoice(Object.keys(BASE_COLORS));
-  const availableColors = VALID_RECESSIVE_COLORS[primaryColor].filter(c => c !== "None");
-  const recessiveColor = availableColors.length > 0 && Math.random() < 0.5 ? randChoice(availableColors) : "None";
+  const availableColors = Object.keys(BASE_COLORS).filter(c => c !== primaryColor);
+  const recessiveColor = Math.random() < 0.5 ? randChoice(availableColors) : "None";
   const genotype = {
     sex: gender,
     Z: (gender === "Male") ? [primaryColor, randChoice(Object.keys(BASE_COLORS))] : [primaryColor, "W"],
@@ -898,11 +884,6 @@ function createCustomPigeon() {
   const recessive = document.getElementById("adminRecessive").value;
   const recessiveColor = document.getElementById("adminRecessiveColor").value;
 
-  if (!VALID_RECESSIVE_COLORS[color1].includes(recessiveColor)) {
-    alert(`Invalid recessive color for ${color1}. Choose from: ${VALID_RECESSIVE_COLORS[color1].join(", ")}`);
-    return;
-  }
-
   const newPigeon = {
     id: Date.now(),
     name,
@@ -966,42 +947,27 @@ function showEditForm() {
     <select id="editDilute"><option value="D"${pigeon.genotype.autosomal.dilute[0]==="D"?" selected":""}>D</option><option value="d"${pigeon.genotype.autosomal.dilute[0]==="d"?" selected":""}>d</option></select>
     <select id="editRecessive"><option value="R"${pigeon.genotype.autosomal.recessive_red[0]==="R"?" selected":""}>R</option><option value="r"${pigeon.genotype.autosomal.recessive_red[0]==="r"?" selected":""}>r</option></select>
     <select id="editRecessiveColor">
-      ${VALID_RECESSIVE_COLORS[pigeon.primaryColor].map(c=>`<option value="${c}" ${c===pigeon.recessiveColor?"selected":""}>${c}</option>`).join("")}
+      <option value="None"${pigeon.recessiveColor==="None"?" selected":""}>None</option>
+      ${Object.keys(BASE_COLORS).map(c=>`<option value="${c}" ${c===pigeon.recessiveColor?"selected":""}>${c}</option>`).join("")}
     </select>
     <button id="saveEditBtn">Save</button>
   `;
-  const colorSelect = document.getElementById("editColor1");
-  const recessiveSelect = document.getElementById("editRecessiveColor");
-  function updateRecessiveOptions() {
-    const primaryColor = colorSelect.value;
-    recessiveSelect.innerHTML = VALID_RECESSIVE_COLORS[primaryColor].map(c => `<option value="${c}" ${c===pigeon.recessiveColor?"selected":""}>${c}</option>`).join("");
-  }
-  colorSelect.addEventListener("change", updateRecessiveOptions);
   document.getElementById("saveEditBtn").addEventListener("click", () => saveEdit(pigeon.id));
 }
 
 function saveEdit(id) {
   const pigeon = findPigeonById(id);
   if (!pigeon) return;
-  const name = document.getElementById("editName").value || pigeon.name;
-  const gender = document.getElementById("editGender").value;
+  pigeon.name = document.getElementById("editName").value || pigeon.name;
+  pigeon.gender = document.getElementById("editGender").value;
   const color = document.getElementById("editColor1").value;
-  const recessiveColor = document.getElementById("editRecessiveColor").value;
-
-  if (!VALID_RECESSIVE_COLORS[color].includes(recessiveColor)) {
-    alert(`Invalid recessive color for ${color}. Choose from: ${VALID_RECESSIVE_COLORS[color].join(", ")}`);
-    return;
-  }
-
-  pigeon.name = name;
-  pigeon.gender = gender;
   pigeon.genotype.Z = [color, pigeon.gender === "Male" ? color : "W"];
   pigeon.genotype.autosomal.pattern = [document.getElementById("editPattern1").value, document.getElementById("editPattern2").value];
   pigeon.genotype.autosomal.spread = [document.getElementById("editSpread").value, document.getElementById("editSpread").value];
   pigeon.genotype.autosomal.dilute = [document.getElementById("editDilute").value, document.getElementById("editDilute").value];
   pigeon.genotype.autosomal.recessive_red = [document.getElementById("editRecessive").value, document.getElementById("editRecessive").value];
   pigeon.primaryColor = resolveBaseColor(pigeon.genotype);
-  pigeon.recessiveColor = recessiveColor;
+  pigeon.recessiveColor = document.getElementById("editRecessiveColor").value;
   applyModifiers(pigeon);
   displayPigeons();
   saveGameState();
@@ -1076,9 +1042,8 @@ function generateOffspring(male, female) {
     }
   };
   const primaryColor = resolveBaseColor(genotype);
-  const availableColors = VALID_RECESSIVE_COLORS[primaryColor].filter(c => c !== "None");
-  const parentRecessiveColors = [male.recessiveColor, female.recessiveColor].filter(c => c !== "None" && VALID_RECESSIVE_COLORS[primaryColor].includes(c));
-  const recessiveColor = parentRecessiveColors.length > 0 && Math.random() < 0.5 ? randChoice(parentRecessiveColors) : (availableColors.length > 0 && Math.random() < 0.5 ? randChoice(availableColors) : "None");
+  const recessiveColorOptions = [male.recessiveColor, female.recessiveColor].filter(c => c !== "None" && c !== primaryColor);
+  const recessiveColor = recessiveColorOptions.length > 0 && Math.random() < 0.5 ? randChoice(recessiveColorOptions) : "None";
   const child = {
     id,
     name: getRandomName(),
