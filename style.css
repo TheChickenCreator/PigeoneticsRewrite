@@ -1,7 +1,9 @@
 /* Rustic, Cottage Core, American West Theme */
 body {
   font-family: 'Georgia', serif;
-  background: #d2b48c; /* Removed external URL, using solid tan color */
+  background: #d2b48c url("wood.jpg");
+  background-attachment: fixed;
+  background-size: cover;
   color: #4b3223;
   margin: 0;
   padding: 30px 0;
@@ -12,8 +14,8 @@ body {
 }
 
 #game-container {
-  background-color: #f5deb3; /* Wheat color for cottage core */
-  border: 3px solid #8b4513; /* Saddle brown for western feel */
+  background-color: #f5deb3;
+  border: 3px solid #8b4513;
   border-radius: 15px;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
   width: 95%;
@@ -21,7 +23,6 @@ body {
   padding: 25px;
 }
 
-/* Header */
 header {
   text-align: center;
   margin-bottom: 20px;
@@ -38,35 +39,56 @@ header p {
   font-style: italic;
 }
 
-/* Energy, Coin, and Inventory Containers */
-#energy-container, #coin-container, #inventory-container {
+.energy-container,
+.coin-container {
   text-align: center;
   margin-bottom: 10px;
   font-weight: bold;
   background-color: #f2e6d4;
   border-radius: 8px;
   padding: 8px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
 }
 
-#energy-bar {
-  height: 20px;
-  background-color: #228b22; /* Forest green for cottage core */
-  transition: width 0.3s;
-  margin: 0 auto;
-  width: 0%;
+.energy-bar {
+  position: relative;
+  height: 22px;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 300px;
+  margin: 5px auto;
+  background: linear-gradient(to right, #006400, #32cd32);
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
+  transition: width 0.6s ease, background 0.4s ease;
+  overflow: hidden;
 }
 
-/* Coin Container */
-#coin-container {
-  text-align: center;
-  margin-bottom: 10px;
-  font-weight: bold;
-  background-color: #f2e6d4;
-  border-radius: 8px;
-  padding: 8px;
+.energy-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: 100%;
+  background: rgba(255,255,255,0.15);
+  animation: shine 3s infinite linear;
 }
 
-/* Home Screen Buttons */
+@keyframes shine {
+  0% { background-position: -100px; }
+  100% { background-position: 300px; }
+}
+
+.energy-low {
+  background: linear-gradient(to right, #8b0000, #ff6347) !important;
+}
+.energy-medium {
+  background: linear-gradient(to right, #daa520, #ffd700) !important;
+}
+.energy-full {
+  background: linear-gradient(to right, #006400, #32cd32) !important;
+}
+
 .home-buttons {
   display: flex;
   justify-content: center;
@@ -93,7 +115,6 @@ header p {
   transform: scale(1.05);
 }
 
-/* Section Containers */
 .section {
   display: none;
   background-color: #fffdf8;
@@ -108,7 +129,6 @@ header p {
   display: block;
 }
 
-/* Loft & Pigeon Grid */
 .pigeon-grid {
   display: flex;
   flex-wrap: wrap;
@@ -126,6 +146,7 @@ header p {
   text-align: center;
   box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.25s ease;
+  cursor: pointer;
 }
 
 .pigeon:hover {
@@ -134,11 +155,16 @@ header p {
 }
 
 .pigeon img {
-  margin-bottom: 5px;
-  cursor: pointer;
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 5px;
+  border-radius: 6px;
+  background-color: rgba(255,255,255,0.6);
+  padding: 4px;
 }
 
-/* Buttons (General) */
 button {
   padding: 8px 14px;
   background-color: #e3d5c2;
@@ -154,10 +180,32 @@ button:hover {
   background-color: #d8c3a5;
 }
 
-/* Breeding Container Panels */
+#deselectMaleBtn, #deselectFemaleBtn {
+  padding: 8px 14px;
+  background-color: #d8a48f;
+  border: 1px solid #a67c52;
+  border-radius: 6px;
+  color: #4b3223;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: "Georgia", serif;
+  margin: 5px;
+}
+
+#deselectMaleBtn:hover, #deselectFemaleBtn:hover {
+  background-color: #b8735e;
+}
+
+#breeding-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 #breeding-container .breeding-panel {
-  display: inline-block;
-  vertical-align: top;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   width: 30%;
   min-height: 150px;
   padding: 10px;
@@ -166,42 +214,27 @@ button:hover {
   background-color: #fff4e1;
   text-align: center;
   margin: 5px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+#breeding-container .breeding-panel .pigeon {
+  width: calc(50% - 10px);
+  margin: 5px;
+  box-sizing: border-box;
 }
 
 #breeding-container .center-panel {
   width: 30%;
-  display: inline-block;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  gap: 10px;
 }
 
-/* Navigation Buttons */
-#backHome, #backButton, #backToLoftBtn, #toStoreFromLoftBtn, #toExploreFromLoftBtn, #toLoftFromExploreBtn, #toLoftFromStoreBtn, #backFromCooldownBtn, #backFromAutoAgeBtn {
-  display: inline-block;
-  margin: 10px 5px;
-  background-color: #eadbc5;
-  font-weight: bold;
-}
-
-/* Quest + Loft Controls */
-#questButton,
-#upgradeButton {
-  margin: 3px;
-}
-
-/* Explore & Store */
-#explore-container,
-#store-container,
-#cooldown-remover-screen,
-#auto-age-screen {
-  text-align: center;
-}
-
-#explore-container div {
-  transition: opacity 0.5s ease;
-  opacity: 1;
-}
-
-#store-container .store-grid {
+.store-grid {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -209,7 +242,7 @@ button:hover {
   margin-top: 10px;
 }
 
-#store-container .store-item {
+.store-item {
   width: 150px;
   padding: 10px;
   background-color: #f8f4ec;
@@ -221,54 +254,9 @@ button:hover {
   box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
 }
 
-#store-container .store-item:hover {
+.store-item:hover {
   transform: scale(1.05);
   box-shadow: 4px 4px 10px rgba(0,0,0,0.2);
-}
-
-#store-container .store-item h4 {
-  margin: 5px 0;
-  font-size: 16px;
-}
-
-#store-container .store-item p {
-  font-size: 14px;
-  margin: 5px 0;
-}
-
-#store-container .store-item button {
-  background-color: #d8c3a5;
-  border: none;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#store-container .store-item button:hover {
-  background-color: #c0a98b;
-}
-
-/* Details Summary (Gene Info) */
-summary {
-  cursor: pointer;
-  font-weight: bold;
-}
-
-details ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
-}
-
-details li {
-  margin: 2px 0;
-  padding: 4px;
-  border-bottom: 1px solid #eee;
-}
-
-/* Pigeon Detail Screen */
-#pigeon-detail-screen {
-  text-align: center;
 }
 
 #pigeon-detail-content {
@@ -276,6 +264,9 @@ details li {
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  display: inline-block;
+  max-width: 440px;
+  width: 100%;
 }
 
 #pigeon-detail-content img {
@@ -283,37 +274,85 @@ details li {
   margin-bottom: 15px;
 }
 
-#pigeon-detail-content ul {
-  list-style-type: none;
-  padding: 0;
-  text-align: left;
-  max-width: 300px;
-  margin: 0 auto;
-}
-
-#pigeon-detail-content li {
-  margin: 5px 0;
-  padding: 5px;
-  border-bottom: 1px dashed #a67c52;
-}
-
-/* Cooldown Remover and Auto Age Screens */
-#cooldown-remover-screen .pigeon-grid,
-#auto-age-screen .pigeon-grid {
+#pigeon-detail-content h4 {
   margin-top: 15px;
+  color: #8b4513;
 }
 
-/* Responsive Adjustments */
+#pigeon-detail-content p {
+  margin: 5px 0;
+}
+
+#inventory-display {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: #fff4e1;
+  border: 1px solid #a67c52;
+  border-radius: 8px;
+  text-align: center;
+}
+
+#sell-all-confirm {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff4e1;
+  padding: 20px;
+  border: 2px solid #a67c52;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+  text-align: center;
+}
+
+#sell-all-confirm p {
+  margin-bottom: 15px;
+}
+
+#sell-all-confirm button {
+  background-color: #e3d5c2;
+  border: 1px solid #a67c52;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: "Georgia", serif;
+  margin: 5px;
+}
+
+#sell-all-confirm button:hover {
+  background-color: #d8c3a5;
+}
+
 @media (max-width: 600px) {
   .home-button {
     width: 90%;
     height: 90px;
     font-size: 18px;
   }
+  #breeding-container {
+    flex-direction: column;
+  }
   #breeding-container .breeding-panel,
   #breeding-container .center-panel {
     width: 90%;
     display: block;
     margin: 10px auto;
+  }
+  #breeding-container .breeding-panel .pigeon {
+    width: 100%;
+  }
+  .pigeon {
+    width: 100px;
+    min-height: 120px;
+  }
+  .pigeon img {
+    width: 80px;
+    height: 80px;
+  }
+  #deselectMaleBtn, #deselectFemaleBtn {
+    padding: 6px 12px;
+    font-size: 14px;
   }
 }
