@@ -60,19 +60,19 @@ const BASE_COLORS = {
   "Ash red": "./red_bar.gif",
   "Blue": "./blue_bar.gif",
   "Brown": "./brown_bar.gif",
-  "Recessive red": "./red_recessive.gif"
+  "Recessive red": "./recessivered.gif"
 };
 const DILUTE_COLORS = {
   "Ash red": "./yellow_bar.gif",
   "Blue": "./silver_bar.gif",
   "Brown": "./brown_dilute.gif",
-  "Recessive red": "./red_recessive.gif"
+  "Recessive red": "./recessivered.gif"
 };
 const SPREAD_COLORS = {
   "Ash red": "./red_spread.gif",
   "Blue": "./blue_spread.gif",
   "Brown": "./brown_spread.gif",
-  "Recessive red": "./red_recessive.gif"
+  "Recessive red": "./recessivered.gif"
 };
 const BABY_IMAGE = "./squab.gif";
 const PLACEHOLDER_IMAGE = "./placeholder.gif";
@@ -145,11 +145,15 @@ window.displayPigeons = function() {
       if (p) {
         const div = document.createElement("div");
         div.className = "pigeon";
+        const cooldown = p.isBaby 
+          ? (p.matureTime ? `Time to mature: ${formatTime(Math.max(0, p.matureTime - Date.now()))}` : "Time to mature: Ready")
+          : (p.breedCooldown ? `Cooldown: ${formatTime(p.breedCooldown)}` : "Cooldown: Ready");
         div.innerHTML = `
           <img src="${p.sprite || PLACEHOLDER_IMAGE}" alt="${p.name}" onerror="this.src='${PLACEHOLDER_IMAGE}'; console.warn('Failed to load image: ${p.sprite}');">
           <p>${p.name}</p>
           <p>${p.gender}</p>
           <p>${p.displayedColor}</p>
+          <p>${cooldown}</p>
         `;
         div.addEventListener("click", () => showPigeonDetail(p.id));
         pigeonGrid.appendChild(div);
@@ -157,7 +161,6 @@ window.displayPigeons = function() {
     });
   }
 
-  // Removed redundant panel updates here since openBreeding handles it
   if (cooldownSelect) {
     cooldownSelect.innerHTML = "";
     pigeons.forEach((p) => {
